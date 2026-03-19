@@ -9,21 +9,15 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar Chrome (método más compatible)
+# Instalar Chrome
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
     && apt-get update && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar ChromeDriver manualmente (versión fija para evitar problemas)
-RUN CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+') \
-    && CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d '.' -f1) \
-    && wget -q "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_MAJOR_VERSION" -O /tmp/chromedriver_version \
-    && DRIVER_VERSION=$(cat /tmp/chromedriver_version) \
-    && wget -q "https://chromedriver.storage.googleapis.com/$DRIVER_VERSION/chromedriver_linux64.zip" -O /tmp/chromedriver.zip \
-    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
-    && chmod +x /usr/local/bin/chromedriver \
-    && rm /tmp/chromedriver.zip /tmp/chromedriver_version
+# Instalar webdriver-manager y descargar ChromeDriver automáticamente
+RUN pip install webdriver-manager
+RUN python -c "from webdriver_manager.chrome import ChromeDriverManager; ChromeDriverManager().install()"
 
 WORKDIR /app
 
