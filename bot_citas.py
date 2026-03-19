@@ -48,52 +48,11 @@ def run_web_server():
     app.run(host="0.0.0.0", port=PUERTO, debug=False, use_reloader=False)
 
 # ===========================================
-# BOT DE TELEGRAM (con comandos)
+# VARIABLES GLOBALES (para el comando /start)
 # ===========================================
-
-# Variable global para saber cuándo fue la última verificación
 ultima_verificacion = "Nunca"
 ultimo_estado = "Sin verificaciones"
 citas_encontradas_total = 0
-
-# Comando /start
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Responde al comando /start con información del bot"""
-    user = update.effective_user
-    mensaje = (
-        f"🤖 <b>Bot de Citas - Cónsulado de Colombia</b>\n\n"
-        f"👋 ¡Hola {user.first_name}!\n\n"
-        f"📋 <b>Servicio monitoreado:</b> {NOMBRE_SERVICIO}\n"
-        f"🕒 <b>Última verificación:</b> {ultima_verificacion}\n"
-        f"📊 <b>Estado:</b> {ultimo_estado}\n"
-        f"✅ <b>Citas encontradas:</b> {citas_encontradas_total}\n\n"
-        f"⏱️ Revisando cada {REVISAR_CADA//60} minutos\n"
-        f"🔍 <b>Live:</b> 🟢 Bot activo"
-    )
-    await update.message.reply_text(mensaje, parse_mode='HTML')
-
-# Comando /status (opcional, para más detalles)
-async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra el estado detallado"""
-    mensaje = (
-        f"📊 <b>ESTADO DETALLADO</b>\n\n"
-        f"🕒 Última verificación: {ultima_verificacion}\n"
-        f"📌 Último estado: {ultimo_estado}\n"
-        f"✅ Total citas encontradas: {citas_encontradas_total}\n"
-        f"🔧 Servicio: {NOMBRE_SERVICIO}\n"
-        f"🌐 URL: {URL[:50]}...\n"
-        f"⏱️ Intervalo: {REVISAR_CADA//60} minutos\n"
-        f"💡 Memoria: Activo"
-    )
-    await update.message.reply_text(mensaje, parse_mode='HTML')
-
-# Función para actualizar el estado global
-def actualizar_estado(verificacion, estado, encontro_cita=False):
-    global ultima_verificacion, ultimo_estado, citas_encontradas_total
-    ultima_verificacion = verificacion
-    ultimo_estado = estado
-    if encontro_cita:
-        citas_encontradas_total += 1
 
 # ===========================================
 # FUNCIONES DE UTILIDAD
@@ -124,26 +83,72 @@ def obtener_fecha_actual():
     """Retorna la fecha actual formateada"""
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
+def actualizar_estado(verificacion, estado, encontro_cita=False):
+    """Actualiza las variables globales de estado"""
+    global ultima_verificacion, ultimo_estado, citas_encontradas_total
+    ultima_verificacion = verificacion
+    ultimo_estado = estado
+    if encontro_cita:
+        citas_encontradas_total += 1
+
+# ===========================================
+# COMANDOS DE TELEGRAM
+# ===========================================
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Responde al comando /start con el mismo formato que el local"""
+    user = update.effective_user
+    # Obtener el nombre de usuario o primer nombre
+    nombre_usuario = user.first_name if user.first_name else "Usuario"
+    
+    mensaje = (
+        f"🤖 Bot de Citas - Cónsulado de Colombia\n\n"
+        f"👋 ¡Hola {nombre_usuario}!\n\n"
+        f"📋 Servicio monitoreado: {NOMBRE_SERVICIO}\n"
+        f"🕒 Última verificación: {ultima_verificacion}\n"
+        f"📊 Estado: {ultimo_estado}\n"
+        f"✅ Citas encontradas: {citas_encontradas_total}\n\n"
+        f"⏱️ Revisando cada {REVISAR_CADA//60} minutos\n"
+        f"🔍 Live: 🟢 Bot activo (corriendo en Koyeb)"
+    )
+    await update.message.reply_text(mensaje)
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando /status con más detalles"""
+    mensaje = (
+        f"📊 ESTADO DETALLADO\n\n"
+        f"🕒 Última verificación: {ultima_verificacion}\n"
+        f"📌 Último estado: {ultimo_estado}\n"
+        f"✅ Total citas encontradas: {citas_encontradas_total}\n"
+        f"🔧 Servicio: {NOMBRE_SERVICIO}\n"
+        f"🌐 URL: {URL[:50]}...\n"
+        f"⏱️ Intervalo: {REVISAR_CADA//60} minutos\n"
+        f"💡 Modo: Koyeb"
+    )
+    await update.message.reply_text(mensaje)
+
 # ===========================================
 # FUNCIÓN PRINCIPAL DE BÚSQUEDA
 # ===========================================
 
 def buscar_citas():
+    """Busca citas disponibles en la página"""
     global ultima_verificacion, ultimo_estado
     
     fecha_actual = obtener_fecha_actual()
     ultima_verificacion = fecha_actual
-    logging.info(f"\n{'='*50}")
+    logging.info(f"\n{'='*60}")
     logging.info(f"🔍 REVISIÓN: {fecha_actual}")
-    logging.info(f"{'='*50}")
+    logging.info(f"📋 Servicio: {NOMBRE_SERVICIO}")
+    logging.info(f"{'='*60}")
     
-    # Configurar Chrome para servidor
+    # Configurar Chrome para servidor (MODO HEADLESS)
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--headless=new")  # Obligatorio en servidor
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--window-size=1280,720")
     chrome_options.add_argument('--disable-blink-features=AutomationControlled')
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
@@ -174,10 +179,10 @@ def buscar_citas():
             try:
                 boton = driver.find_element(By.CSS_SELECTOR, "button.OM013")
                 driver.execute_script("arguments[0].click();", boton)
-                logging.info("   ✅ Clic en botón 'Mostrar más' (selector alternativo)")
+                logging.info("   ✅ Clic en botón 'Mostrar más' (alternativo)")
                 time.sleep(2)
             except:
-                logging.warning("   ⚠ No se encontró el botón 'Mostrar más servicios'")
+                logging.warning("   ⚠ No se encontró el botón")
         
         # ========== PASO 3: SELECCIONAR SERVICIO ==========
         logging.info(f"🎯 Buscando servicio: '{NOMBRE_SERVICIO}'")
@@ -189,7 +194,7 @@ def buscar_citas():
             titulos = driver.find_elements(By.CSS_SELECTOR, "div.XNuah")
             for titulo in titulos:
                 if titulo.text.strip() == NOMBRE_SERVICIO:
-                    logging.info(f"   ✅ Encontrado título: '{titulo.text}'")
+                    logging.info(f"   ✅ Encontrado: '{titulo.text}'")
                     radio = titulo.find_element(By.XPATH, "./ancestor::li//input[@type='radio']")
                     driver.execute_script("arguments[0].click();", radio)
                     logging.info(f"   ✅ Servicio seleccionado")
@@ -201,6 +206,7 @@ def buscar_citas():
         if not servicio_seleccionado:
             ultimo_estado = f"❌ Servicio '{NOMBRE_SERVICIO}' no encontrado"
             logging.error(ultimo_estado)
+            actualizar_estado(fecha_actual, ultimo_estado)
             return
         
         time.sleep(4)
@@ -229,9 +235,12 @@ def buscar_citas():
         if not dias_habilitados:
             ultimo_estado = "❌ No hay días con citas"
             logging.info(ultimo_estado)
+            actualizar_estado(fecha_actual, ultimo_estado)
             return
         
         logging.info(f"✅ DÍAS CON CITAS: {len(dias_habilitados)}")
+        for dia in dias_habilitados:
+            logging.info(f"   📆 Día {dia['numero']}")
         
         # ========== PASO 5: VERIFICAR HORAS ==========
         logging.info(f"⏰ Verificando horas...")
@@ -239,7 +248,7 @@ def buscar_citas():
         citas_encontradas = False
         dias_con_horas = []
         
-        for dia_info in dias_habilitados[:3]:
+        for dia_info in dias_habilitados[:3]:  # Limitar a 3 días
             try:
                 logging.info(f"   📅 Probando día {dia_info['numero']}")
                 driver.execute_script("arguments[0].click();", dia_info['elemento'])
@@ -270,7 +279,7 @@ def buscar_citas():
                         'dia': dia_info['numero'],
                         'horas': sorted(horas)[:3]
                     })
-                    logging.info(f"      ✅ {len(horas)} horarios")
+                    logging.info(f"      ✅ {len(horas)} horarios: {', '.join(horas[:3])}")
                 else:
                     logging.info(f"      ❌ Sin horas")
                     
@@ -281,15 +290,15 @@ def buscar_citas():
         # ========== PASO 6: NOTIFICAR ==========
         if citas_encontradas:
             ultimo_estado = f"✅ CITAS DISPONIBLES ({len(dias_con_horas)} días)"
-            mensaje = f"<b>🔔 ¡CITAS DISPONIBLES!</b>\n\n"
-            mensaje += f"<b>Servicio:</b> {NOMBRE_SERVICIO}\n"
-            mensaje += f"<b>Fecha:</b> {fecha_actual}\n\n"
+            mensaje = f"🔔 ¡CITAS DISPONIBLES!\n\n"
+            mensaje += f"Servicio: {NOMBRE_SERVICIO}\n"
+            mensaje += f"Fecha: {fecha_actual}\n\n"
             
             for item in dias_con_horas:
                 horas_str = ', '.join(item['horas'])
                 mensaje += f"📆 Día {item['dia']}: {horas_str}\n"
             
-            mensaje += f"\n🔗 <a href='{URL}'>Reservar ahora</a>"
+            mensaje += f"\n🔗 {URL}"
             
             enviar_telegram(mensaje)
             actualizar_estado(fecha_actual, ultimo_estado, encontro_cita=True)
@@ -343,7 +352,7 @@ if __name__ == "__main__":
     # Iniciar bot de Telegram en otro hilo
     hilo_telegram = threading.Thread(target=run_telegram_bot, daemon=True)
     hilo_telegram.start()
-    logging.info("✅ Hilo de Telegram iniciado")
+    time.sleep(2)  # Dar tiempo a que inicie
     
     # Mostrar configuración
     logging.info("="*60)
