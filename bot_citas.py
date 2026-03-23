@@ -21,7 +21,7 @@ import asyncio
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 URL = os.environ.get("URL_CITAS", "https://outlook.office365.com/book/Atencinalpblico@cancilleria.gov.co/?ismsaljsauthenabled=true")
-NOMBRE_SERVICIO = os.environ.get("SERVICIO", "Registro Civil de Nacimiento")
+NOMBRE_SERVICIO = os.environ.get("SERVICIO", "Autenticación de copia")
 REVISAR_CADA = int(os.environ.get("INTERVALO", 300))  # segundos
 PUERTO = int(os.environ.get("PORT", 8080))
 
