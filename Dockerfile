@@ -1,31 +1,36 @@
-# Usamos una imagen de Python oficial
-FROM python:3.10-slim
+# Usamos una imagen que ya incluye herramientas de sistema
+FROM python:3.10-bullseye
 
-# Instalar dependencias del sistema y Google Chrome
+# Evitar preguntas interactivas durante la instalación
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar Google Chrome de forma segura y moderna
 RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    unzip \
+    apt-transport-https \
+    ca-certificates \
     curl \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
+    gnupg \
+    --no-install-recommends \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y \
     google-chrome-stable \
+    --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Establecer directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de requisitos e instalar
+# Copiar e instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código
+# Copiar el código del bot
 COPY . .
 
-# Exponer el puerto que usa Flask
+# Puerto para Flask
 EXPOSE 8080
 
-# Comando para ejecutar el bot
+# Ejecutar el bot
 CMD ["python", "main.py"]
