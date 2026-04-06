@@ -21,7 +21,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8400265046:AAHA_qjtya3Gf2kqB-16ODGhKKFeIsjN72E")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "278479819")
 URL = "https://outlook.office365.com/book/Atencinalpblico@cancilleria.gov.co/?ismsaljsauthenabled=true"
-NOMBRE_SERVICIO = os.environ.get("SERVICIO", "Registro Civil de Nacimiento")
+NOMBRE_SERVICIO = os.environ.get("SERVICIO", "Pasaporte")
 REVISAR_CADA = int(os.environ.get("INTERVALO", 300))
 PUERTO = int(os.environ.get("PORT", 8080))
 
