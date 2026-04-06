@@ -11,7 +11,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+# ← CAMBIO: eliminada la importación de webdriver_manager
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
@@ -24,9 +24,6 @@ URL = "https://outlook.office365.com/book/Atencinalpblico@cancilleria.gov.co/?is
 NOMBRE_SERVICIO = os.environ.get("SERVICIO", "Registro Civil de Nacimiento")
 REVISAR_CADA = int(os.environ.get("INTERVALO", 300))
 PUERTO = int(os.environ.get("PORT", 8080))
-
-# Forzar a webdriver-manager a usar la carpeta local del proyecto
-os.environ['WDM_LOCAL'] = '1'
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -62,27 +59,24 @@ def buscar_citas():
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920,1080')
-    options.binary_location = "/usr/bin/google-chrome"
+    options.binary_location = "/usr/bin/chromium"  # ← CAMBIO: de google-chrome a chromium
 
     driver = None
     try:
-        # Instalación automática en carpeta local (/app) para evitar errores de /root/.cache
-        service = Service(ChromeDriverManager().install())
+        service = Service('/usr/bin/chromedriver')  # ← CAMBIO: driver del sistema, sin webdriver-manager
         driver = webdriver.Chrome(service=service, options=options)
         wait = WebDriverWait(driver, 20)
         
         logging.info(f"Iniciando búsqueda para: {NOMBRE_SERVICIO}")
         driver.get(URL)
-        time.sleep(10) # Tiempo para carga de Outlook
+        time.sleep(10)
         
         # 1. Seleccionar Servicio
         try:
-            # Click en mostrar más si existe
             btn_mas = driver.find_elements(By.XPATH, "//button[contains(text(), 'Mostrar más')]")
             if btn_mas: 
                 driver.execute_script("arguments[0].click();", btn_mas[0])
                 time.sleep(2)
-
             titulos = driver.find_elements(By.CSS_SELECTOR, "div.XNuah")
             encontrado = False
             for titulo in titulos:
@@ -96,7 +90,6 @@ def buscar_citas():
                 logging.warning(f"No se encontró el servicio: {NOMBRE_SERVICIO}")
         except Exception as e:
             logging.error(f"Error seleccionando servicio: {e}")
-
         time.sleep(5)
         
         # 2. Buscar Días Disponibles
@@ -105,8 +98,7 @@ def buscar_citas():
         
         for dia in dias:
             numero = dia.text.strip()
-            # Un día es válido si tiene número y NO tiene el atributo aria-disabled="true"
-            if numero.isdigit() and dia.get_attribute("aria-disabled") != "true":
+if numero.isdigit() and dia.get_attribute("aria-disabled") != "true":
                 dias_disponibles.append(numero)
         
         if dias_disponibles:
@@ -124,9 +116,7 @@ def buscar_citas():
         else:
             ultimo_estado = "❌ Sin citas disponibles"
             logging.info(ultimo_estado)
-
     except Exception as e:
-        # Capturamos el error para mostrarlo en el comando /start
         ultimo_estado = f"⚠ Error: {str(e)[:100]}"
         logging.error(f"Error en búsqueda: {e}")
     finally:
@@ -150,24 +140,17 @@ async def run_tg():
     await application.initialize()
     await application.start()
     await application.updater.start_polling()
-    # Mantener el loop de Telegram vivo
     while True:
         await asyncio.sleep(3600)
 
 def loop_busqueda():
-    # Pequeña espera inicial para que el servidor Flask y Telegram suban
     time.sleep(10)
     while True:
         buscar_citas()
         time.sleep(REVISAR_CADA)
 
-if __name__ == "__main__":
-    # Hilo para Flask (Salud del servicio)
+if name == "__main__":
     threading.Thread(target=lambda: app.run(host="0.0.0.0", port=PUERTO, debug=False, use_reloader=False), daemon=True).start()
-    
-    # Hilo para Telegram
     threading.Thread(target=lambda: asyncio.run(run_tg()), daemon=True).start()
-    
-    # Hilo principal para la búsqueda
     enviar_telegram(f"🚀 Bot Reiniciado\nServicio: {NOMBRE_SERVICIO}")
     loop_busqueda()
